@@ -47,6 +47,7 @@ jobs:
           port: ${{ secrets.SSH_PORT }}
           script: |
             cd /media/data/apps/makecodes-websocket
+            echo ${{secrets.DOCKER_HUB_PASSWORD}} | docker login -u ${{secrets.DOCKER_HUB_USERNAME}} --password-stdin
             docker pull redbeard/makecodes-websocket:latest
             docker-compose up -d app
             docker image prune -f
