@@ -3,6 +3,8 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"sync"
 
 	"github.com/gorilla/websocket"
@@ -27,32 +29,53 @@ func (c *Connection) WriteMessage(messageType int, data []byte) error {
 	return c.Conn.WriteMessage(messageType, data)
 }
 
-var connections = make(map[*Connection]bool)
-var connectionsMu sync.Mutex
-
-func addConnection(conn *Connection) {
-	connectionsMu.Lock()
-	defer connectionsMu.Unlock()
-	connections[conn] = true
+type Channel struct {
+	connections map[*Connection]bool
+	mu          sync.Mutex
 }
 
-func removeConnection(conn *Connection) {
-	connectionsMu.Lock()
-	defer connectionsMu.Unlock()
-	delete(connections, conn)
+func (ch *Channel) addConnection(conn *Connection) {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+	ch.connections[conn] = true
 }
 
-func broadcastMessage(messageType int, message []byte) {
-	connectionsMu.Lock()
-	defer connectionsMu.Unlock()
+func (ch *Channel) removeConnection(conn *Connection) {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+	delete(ch.connections, conn)
+}
 
-	for conn := range connections {
+func (ch *Channel) broadcastMessage(messageType int, message []byte) {
+	ch.mu.Lock()
+	defer ch.mu.Unlock()
+
+	for conn := range ch.connections {
 		if err := conn.WriteMessage(messageType, message); err != nil {
 			log.Println("Write message error:", err)
 			conn.Conn.Close()
-			delete(connections, conn)
+			delete(ch.connections, conn)
 		}
 	}
+}
+
+var channels = make(map[string]*Channel)
+var channelsMu sync.Mutex
+
+func getChannel(path string) *Channel {
+	channelsMu.Lock()
+	defer channelsMu.Unlock()
+
+	ch, ok := channels[path]
+	if !ok {
+		ch = &Channel{
+			connections: make(map[*Connection]bool),
+			mu:          sync.Mutex{},
+		}
+		channels[path] = ch
+	}
+
+	return ch
 }
 
 func websocketHandler(w http.ResponseWriter, r *http.Request) {
@@ -62,11 +85,16 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	channel := getChannel(r.URL.Path)
 	connection := &Connection{Conn: conn}
-	addConnection(connection)
+	channel.addConnection(connection)
+
+	log.Printf("Client connected: %s", conn.RemoteAddr())
+
 	defer func() {
-		removeConnection(connection)
+		channel.removeConnection(connection)
 		conn.Close()
+		log.Printf("Client disconnected: %s", conn.RemoteAddr())
 	}()
 
 	for {
@@ -76,18 +104,31 @@ func websocketHandler(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		log.Printf("Received message: %s\n", message)
-		broadcastMessage(messageType, message)
+		log.Printf("Received message from %s: %s\n", conn.RemoteAddr(), message)
+		channel.broadcastMessage(messageType, message)
 	}
 }
 
 func main() {
-	http.HandleFunc("/ws", websocketHandler)
+	http.HandleFunc("/", websocketHandler)
 
-	// Use your own certificate and key files
-	certFile := "cert.pem"
-	keyFile := "privkey.pem"
+	// Use environment variable for the port
+	portStr := os.Getenv("PORT")
+	if portStr == "" {
+		portStr = "8080" // Set a default port if not provided
+	}
 
-	log.Println("Starting WebSocket server on https://localhost:8080/ws")
-	log.Fatal(http.ListenAndServeTLS(":9080", certFile, keyFile, nil))
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		log.Fatalf("Invalid port number: %s\n", portStr)
+	}
+
+	// Use environment variable for the listening address
+	listenAddress := os.Getenv("LISTEN_ADDRESS")
+	if listenAddress == "" {
+		listenAddress = "localhost" // Set a default listening address if not provided
+	}
+
+	log.Printf("Starting WebSocket server without SSL on http://%s:%d\n", listenAddress, port)
+	log.Fatal(http.ListenAndServe(listenAddress+":"+portStr, nil))
 }

@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  websocket-server:
+    build: .
+    container_name: dev-websocket-server
+    ports:
+      - "9080:8080"
+    environment:
+      PORT: 8080
+      LISTEN_ADDRESS: 0.0.0.0

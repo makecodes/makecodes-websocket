@@ -1,0 +1,83 @@
+migration:
+  - any: ["*/migrations/**/*.py"]
+
+core:
+  - any: ["core/*"]
+
+settings:
+  - any: ["app/settings.py"]
+
+internal:
+  - any: ["internal/**/*.py"]
+
+requirements:
+  - any: ["requirements.txt", "requirements-dev.txt"]
+
+GithubActions:
+  - any:
+      [
+        ".github/*",
+        ".github/workflows/*",
+        ".github/workflows/**/*",
+        ".github/**/*",
+      ]
+
+collector:
+  - any: ["collector/*"]
+
+commands:
+  - any: ["commands/*"]
+
+homestorage:
+  - any: ["homestorage/*"]
+
+i3d:
+  - any: ["i3d/*"]
+
+life:
+  - any: ["life/*"]
+
+mypub:
+  - any: ["mypub/*"]
+
+notification:
+  - any: ["notification/*"]
+
+pet:
+  - any: ["pet/*"]
+
+pubg:
+  - any: ["pubg/*"]
+
+riotgames:
+  - any: ["riotgames/*"]
+
+todo:
+  - any: ["todo/*"]
+
+api:
+  - any: ["v1/*"]
+
+website:
+  - any: ["website/*"]
+
+events:
+  - any: ["events/*"]
+
+price_monitor:
+  - any: ["price_monitor/*"]
+
+blog:
+  - any: ["blog/*"]
+
+gallery:
+  - any: ["gallery/*"]
+
+finance:
+  - any: ["finance/*"]
+
+search:
+  - any: ["search/*"]
+
+timeline:
+  - any: ["timeline/*"]
